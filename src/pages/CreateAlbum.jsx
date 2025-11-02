@@ -117,7 +117,7 @@ export default function CreateAlbumPage() {
     fd.append("title", title);
     fd.append("releaseYear", String(releaseYear));
     fd.append("songIds", JSON.stringify(songIds));
-    if (coverFile) fd.append("imageFile", coverFile);
+    if (coverFile) fd.append("imageFile", coverFile, coverFile.name);
     const { data } = await api.post("/albums", fd);
     return data;
   };
@@ -133,9 +133,7 @@ export default function CreateAlbumPage() {
     fd.append("releaseYear", String(releaseYear));
     fd.append("songIds", JSON.stringify(songIds));
     if (coverFile) fd.append("imageFile", coverFile);
-    const { data } = await api.put(`/albums/${id}`, fd, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
+    const { data } = await api.put(`/albums/${id}`, fd);
     return data;
   };
 
