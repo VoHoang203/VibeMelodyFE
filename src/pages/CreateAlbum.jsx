@@ -1,165 +1,232 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Plus, Save, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Plus, Save, Search, X } from "lucide-react";
-import {
-  Link,
-  NavLink,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from "react-router-dom";
-import { AlbumTrackList } from "@/components/album-track-list";
 
-const mockArtistSongs = [
-  {
-    id: "song-1",
-    name: "Vengeance",
-    artist: "Vo Anh Hoang",
-    duration: 214,
-    imageUrl: "/gym-1.jpg",
-    fileUrl: "",
-  },
-  {
-    id: "song-2",
-    name: "JUDAS",
-    artist: "Vo Anh Hoang",
-    duration: 197,
-    imageUrl: "/gym-2.jpg",
-    fileUrl: "",
-  },
-  {
-    id: "song-3",
-    name: "POOR - Sped Up",
-    artist: "Vo Anh Hoang",
-    duration: 210,
-    imageUrl: "/gym-3.jpg",
-    fileUrl: "",
-  },
-  {
-    id: "song-4",
-    name: "Dark Ambient",
-    artist: "Vo Anh Hoang",
-    duration: 245,
-    imageUrl: "/urban-night.jpg",
-    fileUrl: "",
-  },
-  {
-    id: "song-5",
-    name: "Coastal Vibes",
-    artist: "Vo Anh Hoang",
-    duration: 189,
-    imageUrl: "/coastal-beach.jpg",
-    fileUrl: "",
-  },
-];
+import { api } from "../lib/api";
+import { toast } from "react-hot-toast";
 
+const ARTIST_ID = "690675c47a201801c29ee385";
+const ARTIST_NAME_FALLBACK = "Sơn Tùng M-TP";
+
+/* ---------- util ---------- */
+const fmtDur = (s = 0) =>
+  `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+
+/* ---------- mini track list with drag&drop ---------- */
+function TrackList({ tracks, onReorder, onRemove }) {
+  const dragIdx = useRef(null);
+  return (
+    <div className="space-y-2">
+      {tracks.map((t, i) => (
+        <div
+          key={t.id}
+          draggable
+          onDragStart={() => (dragIdx.current = i)}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            const from = dragIdx.current;
+            if (from === i) return;
+            const next = tracks.slice();
+            const [moved] = next.splice(from, 1);
+            next.splice(i, 0, moved);
+            onReorder(next);
+          }}
+          className="rounded-lg border border-neutral-800 hover:border-neutral-700 transition p-4 bg-neutral-900/40"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-6 text-sm text-neutral-400 select-none">
+              {i + 1}
+            </div>
+            <img
+              src={t.imageUrl || "/placeholder.svg"}
+              alt={t.name}
+              className="h-12 w-12 rounded object-cover"
+            />
+            <div className="flex-1 min-w-0">
+              <div className="font-medium truncate">{t.name}</div>
+              <div className="text-xs text-neutral-400 truncate">
+                {t.artist}
+              </div>
+            </div>
+            <div className="text-sm text-neutral-400 font-mono">
+              {fmtDur(t.duration)}
+            </div>
+            <button
+              onClick={() => onRemove(t.id)}
+              className="ml-3 rounded p-2 hover:bg-neutral-800"
+              title="Remove"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ---------- main page ---------- */
 export default function CreateAlbumPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const albumId = searchParams.get("id");
+  const [sp] = useSearchParams();
+  const albumId = sp.get("id");
   const isEditing = !!albumId;
 
   const [albumName, setAlbumName] = useState("");
-  const [artist, setArtist] = useState("");
+  const [artist, setArtist] = useState(ARTIST_NAME_FALLBACK);
   const [releaseYear, setReleaseYear] = useState("");
-  const [coverImage, setCoverImage] = useState("");
-  const [tracks, setTracks] = useState([
-    {
-      id: "1",
-      name: "Intro",
-      artist: "Sample Artist",
-      duration: 180,
-      imageUrl: "/abstract-music-cover.png",
-      fileUrl: "",
-    },
-    {
-      id: "2",
-      name: "Main Track",
-      artist: "Sample Artist",
-      duration: 240,
-      imageUrl: "/abstract-music-cover.png",
-      fileUrl: "",
-    },
-    {
-      id: "3",
-      name: "Outro",
-      artist: "Sample Artist",
-      duration: 200,
-      imageUrl: "/abstract-music-cover.png",
-      fileUrl: "",
-    },
-  ]);
+  const [coverPreview, setCoverPreview] = useState("");
+  const [coverFile, setCoverFile] = useState(null);
 
-  const [showAddSongsPopup, setShowAddSongsPopup] = useState(false);
+  const [tracks, setTracks] = useState([]);
+
+  const [showAdd, setShowAdd] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedSongs, setSelectedSongs] = useState([]);
+  const [available, setAvailable] = useState([]);
+  const [picked, setPicked] = useState([]);
+
+  /* ---------- API inline (dùng api wrapper) ---------- */
+  const fetchArtistSongs = async (q) => {
+    const params = { artistId: ARTIST_ID, unassigned: true };
+    if (q && q.trim()) params.q = q.trim();
+    const { data } = await api.get("/songs", { params });
+    const list = Array.isArray(data) ? data : data.songs || [];
+    return list.map((s) => ({
+      id: s._id,
+      name: s.title,
+      artist: ARTIST_NAME_FALLBACK,
+      duration: s.durationSec || s.duration || 0,
+      imageUrl: s.imageUrl,
+      fileUrl: "",
+    }));
+  };
+
+  const getAlbum = async (id) => {
+    const { data } = await api.get(`/albums/${id}`);
+    return data;
+  };
+
+  const createAlbum = async ({ title, releaseYear, coverFile, songIds }) => {
+    const fd = new FormData();
+    fd.append("artistId", ARTIST_ID);
+    fd.append("artistName", artist || ARTIST_NAME_FALLBACK);
+    fd.append("title", title);
+    fd.append("releaseYear", String(releaseYear));
+    fd.append("songIds", JSON.stringify(songIds));
+    if (coverFile) fd.append("imageFile", coverFile);
+    const { data } = await api.post("/albums", fd);
+    return data;
+  };
+
+  const updateAlbum = async (
+    id,
+    { title, releaseYear, coverFile, songIds }
+  ) => {
+    const fd = new FormData();
+    fd.append("artistId", ARTIST_ID);
+    fd.append("artistName", artist || ARTIST_NAME_FALLBACK);
+    fd.append("title", title);
+    fd.append("releaseYear", String(releaseYear));
+    fd.append("songIds", JSON.stringify(songIds));
+    if (coverFile) fd.append("imageFile", coverFile);
+    const { data } = await api.put(`/albums/${id}`, fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return data;
+  };
 
   useEffect(() => {
-    if (isEditing) {
-      console.log("[v0] Loading album data for ID:", albumId);
-      setAlbumName("Gymv2");
-      setArtist("Vo Anh Hoang");
-      setReleaseYear("2023");
-      setCoverImage("/gym-1.jpg");
-    }
+    if (!isEditing) return;
+    (async () => {
+      try {
+        const a = await getAlbum(albumId);
+        setAlbumName(a.title || "");
+        setArtist(a.artist || ARTIST_NAME_FALLBACK);
+        setReleaseYear(String(a.releaseYear || ""));
+        setCoverPreview(a.imageUrl || "");
+        setTracks(
+          (a.songs || []).map((s) => ({
+            id: s._id,
+            name: s.title,
+            artist: ARTIST_NAME_FALLBACK,
+            duration: s.durationSec || 0,
+            imageUrl: s.imageUrl,
+            fileUrl: "",
+          }))
+        );
+      } catch (e) {
+        console.error(e);
+        toast.error("Không tải được album");
+      }
+    })();
   }, [albumId, isEditing]);
 
-  const handleCoverImageUpload = (e) => {
+  /* ---------- load list bài khi mở popup / search ---------- */
+  useEffect(() => {
+    if (!showAdd) return;
+    (async () => {
+      try {
+        const songs = await fetchArtistSongs(searchQuery);
+        const existing = new Set(tracks.map((t) => t.id));
+        setAvailable(songs.filter((s) => !existing.has(s.id)));
+      } catch (e) {
+        console.error(e);
+        toast.error("Không tải được danh sách bài hát");
+      }
+    })();
+  }, [showAdd, searchQuery, tracks]);
+
+  /* ---------- handlers ---------- */
+  const onUploadCover = (e) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setCoverImage(e.target?.result);
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+    setCoverFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setCoverPreview(ev.target?.result || "");
+    reader.readAsDataURL(file);
+  };
+
+  const onSave = async () => {
+    if (!albumName || !artist || !releaseYear) {
+      toast.error("Vui lòng nhập đủ thông tin album");
+      return;
+    }
+    const songIds = tracks.map((t) => t.id);
+    try {
+      if (isEditing) {
+        await updateAlbum(albumId, {
+          title: albumName,
+          releaseYear,
+          coverFile,
+          songIds,
+        });
+        toast.success("Đã cập nhật album");
+      } else {
+        await createAlbum({
+          title: albumName,
+          releaseYear,
+          coverFile,
+          songIds,
+        });
+        toast.success("Đã tạo album");
+      }
+      navigate("/manage-albums");
+    } catch (e) {
+      console.error(e);
+      toast.error("Lưu album thất bại");
     }
   };
 
-  const handleSaveAlbum = () => {
-    console.log("[v0] Saving album:", {
-      albumName,
-      artist,
-      releaseYear,
-      tracks: tracks.map((t, i) => ({ ...t, order: i + 1 })),
-    });
-    alert(
-      isEditing ? "Album updated successfully!" : "Album created successfully!"
-    );
-    router.push("/manage-albums");
-  };
-
-  const handleAddSelectedSongs = () => {
-    const songsToAdd = mockArtistSongs.filter((song) =>
-      selectedSongs.includes(song.id)
-    );
-    setTracks((prev) => [...prev, ...songsToAdd]);
-    setShowAddSongsPopup(false);
-    setSelectedSongs([]);
+  const addPicked = () => {
+    const add = available.filter((s) => picked.includes(s.id));
+    setTracks((prev) => [...prev, ...add]);
+    setShowAdd(false);
+    setPicked([]);
     setSearchQuery("");
-  };
-
-  const toggleSongSelection = (songId) => {
-    setSelectedSongs((prev) =>
-      prev.includes(songId)
-        ? prev.filter((id) => id !== songId)
-        : [...prev, songId]
-    );
-  };
-
-  const filteredSongs = mockArtistSongs.filter(
-    (song) =>
-      song.name.toLowerCase().includes(searchQuery.toLowerCase()) &&
-      !tracks.some((track) => track.id === song.id)
-  );
-
-  const formatDuration = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -183,20 +250,21 @@ export default function CreateAlbumPage() {
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">
+          {/* Form */}
           <Card className="p-6 lg:col-span-1">
             <h2 className="text-xl font-semibold mb-4">Album Information</h2>
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="cover">Cover Image</Label>
                 <div className="space-y-3">
-                  {coverImage ? (
+                  {coverPreview ? (
                     <img
-                      src={coverImage || "/placeholder.svg"}
-                      alt="Album cover"
+                      src={coverPreview || "/placeholder.svg"}
+                      alt="cover"
                       className="w-full aspect-square rounded-lg object-cover"
                     />
                   ) : (
-                    <div className="w-full aspect-square rounded-lg bg-secondary flex items-center justify-center">
+                    <div className="w-full aspect-square rounded-lg bg-secondary/40 flex items-center justify-center">
                       <Plus className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
@@ -204,7 +272,7 @@ export default function CreateAlbumPage() {
                     id="cover"
                     type="file"
                     accept="image/*"
-                    onChange={handleCoverImageUpload}
+                    onChange={onUploadCover}
                   />
                 </div>
               </div>
@@ -242,20 +310,21 @@ export default function CreateAlbumPage() {
                 />
               </div>
 
-              <Button onClick={handleSaveAlbum} className="w-full gap-2">
+              <Button onClick={onSave} className="w-full gap-2">
                 <Save className="h-4 w-4" />
                 {isEditing ? "Update Album" : "Save Album"}
               </Button>
             </div>
           </Card>
 
+          {/* Tracks */}
           <Card className="p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-semibold">
                 Track List ({tracks.length})
               </h2>
               <Button
-                onClick={() => setShowAddSongsPopup(true)}
+                onClick={() => setShowAdd(true)}
                 variant="outline"
                 size="sm"
                 className="gap-2 bg-transparent"
@@ -264,26 +333,25 @@ export default function CreateAlbumPage() {
                 Add Track
               </Button>
             </div>
-            <AlbumTrackList
+            <TrackList
               tracks={tracks}
               onReorder={setTracks}
-              onRemove={(trackId) =>
-                setTracks((prev) => prev.filter((t) => t.id !== trackId))
-              }
+              onRemove={(id) => setTracks((p) => p.filter((t) => t.id !== id))}
             />
           </Card>
         </div>
       </div>
 
-      {showAddSongsPopup && (
+      {/* Popup Add Songs */}
+      {showAdd && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="bg-neutral-900 rounded-lg w-full max-w-2xl max-h-[80vh] flex flex-col">
             <div className="p-6 border-b border-neutral-800 flex items-center justify-between">
               <h2 className="text-2xl font-bold">Add Songs to Album</h2>
               <button
                 onClick={() => {
-                  setShowAddSongsPopup(false);
-                  setSelectedSongs([]);
+                  setShowAdd(false);
+                  setPicked([]);
                   setSearchQuery("");
                 }}
                 className="p-2 hover:bg-neutral-800 rounded-lg transition"
@@ -298,6 +366,7 @@ export default function CreateAlbumPage() {
                 <Input
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && setShowAdd(true)}
                   placeholder="Search songs..."
                   className="pl-10"
                 />
@@ -306,63 +375,78 @@ export default function CreateAlbumPage() {
 
             <div className="flex-1 overflow-y-auto p-6">
               <div className="space-y-2">
-                {filteredSongs.length === 0 ? (
+                {available.length === 0 ? (
                   <p className="text-center text-gray-400 py-8">
                     No songs found
                   </p>
                 ) : (
-                  filteredSongs.map((song) => (
-                    <div
-                      key={song.id}
-                      onClick={() => toggleSongSelection(song.id)}
-                      className={`p-4 rounded-lg border-2 cursor-pointer transition ${
-                        selectedSongs.includes(song.id)
-                          ? "border-primary bg-primary/10"
-                          : "border-neutral-800 hover:border-neutral-700"
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={song.imageUrl || "/placeholder.svg"}
-                          alt={song.name}
-                          className="h-12 w-12 rounded object-cover"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-medium truncate">{song.name}</h3>
-                          <p className="text-sm text-gray-400 truncate">
-                            {song.artist}
-                          </p>
+                  available.map((s) => {
+                    const selected = picked.includes(s.id);
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() =>
+                          setPicked((p) =>
+                            p.includes(s.id)
+                              ? p.filter((x) => x !== s.id)
+                              : [...p, s.id]
+                          )
+                        }
+                        className={`p-4 rounded-lg border-2 cursor-pointer transition ${
+                          selected
+                            ? "border-primary bg-primary/10"
+                            : "border-neutral-800 hover:border-neutral-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={s.imageUrl || "/placeholder.svg"}
+                            alt={s.name}
+                            className="h-12 w-12 rounded object-cover"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{s.name}</h3>
+                            <p className="text-sm text-gray-400 truncate">
+                              {s.artist}
+                            </p>
+                          </div>
+                          <span className="text-sm text-gray-400 font-mono">
+                            {fmtDur(s.duration)}
+                          </span>
                         </div>
-                        <span className="text-sm text-gray-400 font-mono">
-                          {formatDuration(song.duration)}
-                        </span>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
 
             <div className="p-6 border-t border-neutral-800 flex items-center justify-between">
               <p className="text-sm text-gray-400">
-                {selectedSongs.length} song(s) selected
+                {picked.length} song(s) selected
               </p>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
-                    setShowAddSongsPopup(false);
-                    setSelectedSongs([]);
+                    setShowAdd(false);
+                    setPicked([]);
                     setSearchQuery("");
                   }}
                 >
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleAddSelectedSongs}
-                  disabled={selectedSongs.length === 0}
+                  onClick={() => {
+                    const add = available.filter((s) => picked.includes(s.id));
+                    setTracks((prev) => [...prev, ...add]);
+                    setShowAdd(false);
+                    setPicked([]);
+                    setSearchQuery("");
+                  }}
+                  disabled={picked.length === 0}
                 >
-                  Add {selectedSongs.length > 0 && `(${selectedSongs.length})`}
+                  Add {picked.length > 0 && `(${picked.length})`}
                 </Button>
               </div>
             </div>

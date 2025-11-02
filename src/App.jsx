@@ -15,6 +15,7 @@ import Search from "./pages/Search";
 import Upload from "./pages/Upload";
 import ManageMusicPage from "./pages/ManageMusic";
 import ManageAlbumsPage from "./pages/ManageAlbum";
+import RegisterArtistPage from "./pages/RegisterArtistPage";
 function App() {
   const [count, setCount] = useState(0);
 
@@ -32,6 +33,7 @@ function App() {
         <Route path="/upload" element={<Upload />} />
         <Route path="/manage-music" element={<ManageMusicPage/>} />
         <Route path="/manage-albums" element={<ManageAlbumsPage/>} />
+        <Route path="/register-artist" element={<RegisterArtistPage/>} />
       </Routes>
       <Toaster />
     </>
