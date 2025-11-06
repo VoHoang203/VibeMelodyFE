@@ -7,9 +7,7 @@ import { MusicUploader } from "@/components/music-uploader";
 import { UploadedTrackCard } from "@/components/uploaded-track-card";
 import { api } from "../lib/api";
 import { toast } from "react-hot-toast";
-
-const ARTIST_ID = "690675c47a201801c29ee385";
-const ARTIST_NAME_FALLBACK = "Sơn Tùng M-TP";
+import { useUserStore } from "../store/useUserStore";
 
 export default function UploadPage() {
   const [tracks, setTracks] = useState([]);
@@ -19,6 +17,9 @@ export default function UploadPage() {
     artist: "",
     keepFile: true,
   });
+  const me = useUserStore((s) => s.user);
+  const ARTIST_ID = me?._id || me?.id;
+  const ARTIST_NAME = me?.artistProfile?.stageName || me?.fullName || "Artist";
   const [saving, setSaving] = useState(false);
 
   const handleTracksUploaded = (newTracks) => {
@@ -92,7 +93,7 @@ export default function UploadPage() {
         try {
           const payload = {
             artistId: ARTIST_ID,
-            artistName: (t.artist || ARTIST_NAME_FALLBACK).trim(),
+            artistName: (t.artist || ARTIST_NAME).trim(),
             title: t.name,
             duration: Number(t.duration || 0),
             audioFile: t.file, // 🔴 bắt buộc

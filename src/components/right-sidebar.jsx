@@ -7,7 +7,8 @@ function cn(...classes) {
 }
 
 function parseActivity(activity) {
-  if (!activity || activity === "Idle") return { title: "", artist: "", isPlaying: false };
+  if (!activity || activity === "Idle")
+    return { title: "", artist: "", isPlaying: false };
   if (activity.startsWith("Playing ")) {
     const raw = activity.replace("Playing ", "");
     const [title, artist] = raw.split(" by ");
@@ -43,7 +44,9 @@ export function RightSidebar({ currentUserId }) {
     <aside className="w-80 bg-black border-l border-white/10 p-6 flex flex-col">
       <div className="flex items-center gap-2 mb-6">
         <Users className="h-5 w-5 text-white" />
-        <h2 className="text-sm font-semibold text-white">What they're listening to</h2>
+        <h2 className="text-sm font-semibold text-white">
+          What they're listening to
+        </h2>
       </div>
 
       {isLoading ? (
@@ -55,12 +58,12 @@ export function RightSidebar({ currentUserId }) {
       ) : (
         <div className="space-y-4 overflow-y-auto">
           {users.map((u) => {
-            const isOnline = onlineUsers.has(u.clerkId);
-            const activity = userActivities.get(u.clerkId) || "Idle";
+            const isOnline = onlineUsers.has(u._id);
+            const activity = userActivities.get(u._id) || "Idle";
             const { title, artist, isPlaying } = parseActivity(activity);
-
+            console.log(userActivities);
             return (
-              <div key={u._id || u.clerkId || u.id} className="flex items-center gap-3">
+              <div key={u._id || u.id} className="flex items-center gap-3">
                 {/* Avatar + status */}
                 <div className="relative">
                   {u.imageUrl ? (
@@ -76,7 +79,11 @@ export function RightSidebar({ currentUserId }) {
                         "bg-white/10"
                       )}
                     >
-                      {(u.fullName?.[0] || u.username?.[0] || "U").toUpperCase()}
+                      {(
+                        u.fullName?.[0] ||
+                        u.username?.[0] ||
+                        "U"
+                      ).toUpperCase()}
                     </div>
                   )}
                   <div
@@ -97,7 +104,10 @@ export function RightSidebar({ currentUserId }) {
                     <div className="mt-0.5 flex items-center gap-1 text-xs text-emerald-400">
                       <Music className="h-3.5 w-3.5 shrink-0" />
                       <span className="truncate">
-                        {title} {artist ? <span className="text-zinc-400">— {artist}</span> : null}
+                        {title}{" "}
+                        {artist ? (
+                          <span className="text-zinc-400">— {artist}</span>
+                        ) : null}
                       </span>
                     </div>
                   ) : (

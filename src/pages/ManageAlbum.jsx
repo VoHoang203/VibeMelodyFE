@@ -4,27 +4,29 @@ import { Plus, Edit, Eye, EyeOff, Trash2, Music } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import { api } from "../lib/api";
-
-const ARTIST_ID = "690675c47a201801c29ee385";
-const ARTIST_NAME_FALLBACK = "Sơn Tùng M-TP";
+import { useUserStore } from "../store/useUserStore";
 
 export default function ManageAlbumsPage() {
   const [albums, setAlbums] = useState([]);
   const [loading, setLoading] = useState(true);
-
+  const me = useUserStore((s) => s.user);
+  const ARTIST_ID = me?._id || me?.id;
+  const ARTIST_NAME = me?.artistProfile?.stageName || me?.fullName || "Artist";
   // --- Load albums theo artist ---
   useEffect(() => {
     (async () => {
       try {
-        const { data } = await api.get("/albums", { params: { artistId: ARTIST_ID } });
-        const list = Array.isArray(data) ? data : (data.items || []);
+        const { data } = await api.get("/albums", {
+          params: { artistId: ARTIST_ID },
+        });
+        const list = Array.isArray(data) ? data : data.items || [];
         // chuẩn hoá field cho UI
         const mapped = list.map((a) => ({
           id: a._id,
           name: a.title,
-          artist: a.artist || ARTIST_NAME_FALLBACK,
+          artist: a.artist || ARTIST_NAME,
           year: a.releaseYear,
-          tracks: Array.isArray(a.songs) ? a.songs.length : (a.tracks || 0),
+          tracks: Array.isArray(a.songs) ? a.songs.length : a.tracks || 0,
           visible: a.isHidden ? false : true,
           image: a.imageUrl,
         }));
@@ -56,7 +58,9 @@ export default function ManageAlbumsPage() {
     } catch (e) {
       // rollback
       setAlbums((prev) =>
-        prev.map((a) => (a.id === albumId ? { ...a, visible: !nextVisible } : a))
+        prev.map((a) =>
+          a.id === albumId ? { ...a, visible: !nextVisible } : a
+        )
       );
       console.error(e);
       toast.error("Không thể cập nhật trạng thái ẩn/hiện");
@@ -146,7 +150,11 @@ export default function ManageAlbumsPage() {
                     className="px-3 py-2 bg-secondary hover:bg-secondary/80 rounded-lg transition"
                     title={album.visible ? "Hide album" : "Show album"}
                   >
-                    {album.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                    {album.visible ? (
+                      <Eye className="h-4 w-4" />
+                    ) : (
+                      <EyeOff className="h-4 w-4" />
+                    )}
                   </button>
                   <button
                     onClick={() => deleteAlbum(album.id)}

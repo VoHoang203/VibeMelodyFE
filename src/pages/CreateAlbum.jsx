@@ -8,9 +8,7 @@ import { Label } from "@/components/ui/label";
 
 import { api } from "../lib/api";
 import { toast } from "react-hot-toast";
-
-const ARTIST_ID = "690675c47a201801c29ee385";
-const ARTIST_NAME_FALLBACK = "Sơn Tùng M-TP";
+import { useUserStore } from "../store/useUserStore";
 
 /* ---------- util ---------- */
 const fmtDur = (s = 0) =>
@@ -75,9 +73,11 @@ export default function CreateAlbumPage() {
   const [sp] = useSearchParams();
   const albumId = sp.get("id");
   const isEditing = !!albumId;
-
+  const me = useUserStore((s) => s.user);
+  const ARTIST_ID = me?._id || me?.id;
+  const ARTIST_NAME = me?.artistProfile?.stageName || me?.fullName || "Artist";
   const [albumName, setAlbumName] = useState("");
-  const [artist, setArtist] = useState(ARTIST_NAME_FALLBACK);
+  const [artist, setArtist] = useState(ARTIST_NAME);
   const [releaseYear, setReleaseYear] = useState("");
   const [coverPreview, setCoverPreview] = useState("");
   const [coverFile, setCoverFile] = useState(null);
@@ -98,7 +98,7 @@ export default function CreateAlbumPage() {
     return list.map((s) => ({
       id: s._id,
       name: s.title,
-      artist: ARTIST_NAME_FALLBACK,
+      artist: ARTIST_NAME,
       duration: s.durationSec || s.duration || 0,
       imageUrl: s.imageUrl,
       fileUrl: "",
@@ -113,7 +113,7 @@ export default function CreateAlbumPage() {
   const createAlbum = async ({ title, releaseYear, coverFile, songIds }) => {
     const fd = new FormData();
     fd.append("artistId", ARTIST_ID);
-    fd.append("artistName", artist || ARTIST_NAME_FALLBACK);
+    fd.append("artistName", artist || ARTIST_NAME);
     fd.append("title", title);
     fd.append("releaseYear", String(releaseYear));
     fd.append("songIds", JSON.stringify(songIds));
@@ -128,7 +128,7 @@ export default function CreateAlbumPage() {
   ) => {
     const fd = new FormData();
     fd.append("artistId", ARTIST_ID);
-    fd.append("artistName", artist || ARTIST_NAME_FALLBACK);
+    fd.append("artistName", artist || ARTIST_NAME);
     fd.append("title", title);
     fd.append("releaseYear", String(releaseYear));
     fd.append("songIds", JSON.stringify(songIds));
@@ -143,14 +143,14 @@ export default function CreateAlbumPage() {
       try {
         const a = await getAlbum(albumId);
         setAlbumName(a.title || "");
-        setArtist(a.artist || ARTIST_NAME_FALLBACK);
+        setArtist(a.artist || ARTIST_NAME);
         setReleaseYear(String(a.releaseYear || ""));
         setCoverPreview(a.imageUrl || "");
         setTracks(
           (a.songs || []).map((s) => ({
             id: s._id,
             name: s.title,
-            artist: ARTIST_NAME_FALLBACK,
+            artist: ARTIST_NAME,
             duration: s.durationSec || 0,
             imageUrl: s.imageUrl,
             fileUrl: "",

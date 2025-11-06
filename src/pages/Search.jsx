@@ -118,7 +118,7 @@ export default function SearchPage() {
                     <img
                       src={song.image || "/placeholder.svg"}
                       alt={song.name}
-                      className="w-12 h-12 rounded object-cover"
+                      className="w-20 h-20 rounded object-cover"
                     />
                     <button className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition">
                       <Play className="h-5 w-5 text-white fill-white" />

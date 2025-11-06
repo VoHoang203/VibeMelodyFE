@@ -19,9 +19,6 @@ export function MusicPlayer() {
     queue,
     currentIndex,
 
-    // state mới
-    shuffle,
-    repeat,
     volume,
     currentTime,
     duration,
@@ -30,8 +27,6 @@ export function MusicPlayer() {
     togglePlay,
     playNext,
     playPrevious,
-    toggleShuffle,
-    cycleRepeat,
     setVolume,
     setProgress,
     setDuration,
@@ -110,8 +105,8 @@ export function MusicPlayer() {
   };
 
   // UI helpers
-  const isActiveShuffle = shuffle;
-  const repeatLabel = repeat === "off" ? "" : repeat === "one" ? "1" : "∞";
+  // const isActiveShuffle = shuffle;
+  // const repeatLabel = repeat === "off" ? "" : repeat === "one" ? "1" : "∞";
 
   return (
     <div className="fixed bottom-0 left-0 right-0 h-24 bg-black border-t border-white/10 px-4 flex items-center justify-between">
@@ -138,13 +133,6 @@ export function MusicPlayer() {
       {/* Player Controls */}
       <div className="flex-1 max-w-2xl px-8">
         <div className="flex items-center justify-center gap-4 mb-2">
-          <button
-            className={`text-gray-400 hover:text-white transition ${isActiveShuffle ? "text-white" : ""}`}
-            onClick={toggleShuffle}
-            title="Shuffle"
-          >
-            <Shuffle className="h-4 w-4" />
-          </button>
 
           <button className="text-gray-400 hover:text-white transition" onClick={playPrevious} title="Previous">
             <SkipBack className="h-5 w-5" />
@@ -164,19 +152,6 @@ export function MusicPlayer() {
 
           <button className="text-gray-400 hover:text-white transition" onClick={playNext} title="Next">
             <SkipForward className="h-5 w-5" />
-          </button>
-
-          <button
-            className={`text-gray-400 hover:text-white transition relative ${repeat !== "off" ? "text-white" : ""}`}
-            onClick={cycleRepeat}
-            title={`Repeat: ${repeat}`}
-          >
-            <Repeat className="h-4 w-4" />
-            {repeat !== "off" && (
-              <span className="absolute -right-2 -top-2 text-[10px] leading-none bg-white text-black rounded px-1">
-                {repeatLabel}
-              </span>
-            )}
           </button>
         </div>
 

@@ -58,23 +58,7 @@ export default function ProfilePage() {
           <p className="text-gray-400 mb-2">{userProfile.username}</p>
           <p className="text-gray-300 mb-6">{userProfile.bio}</p>
 
-          <div className="flex items-center gap-6 mb-6">
-            <div>
-              <span className="text-2xl font-bold">{userProfile.followers}</span>
-              <span className="text-gray-400 ml-2">Followers</span>
-            </div>
-            <div>
-              <span className="text-2xl font-bold">{userProfile.following}</span>
-              <span className="text-gray-400 ml-2">Following</span>
-            </div>
-            <div>
-              <span className="text-2xl font-bold">{userProfile.tracks}</span>
-              <span className="text-gray-400 ml-2">Tracks</span>
-            </div>
-          </div>
-
           <div className="flex items-center gap-3">
-            <Button className="bg-primary hover:bg-primary/90 text-black">Follow</Button>
             <Button variant="outline" size="icon" className="border-white/20 bg-transparent">
               <Share2 className="h-4 w-4" />
             </Button>

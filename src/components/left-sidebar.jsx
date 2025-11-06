@@ -1,5 +1,3 @@
-"use client";
-
 import { Link} from "react-router-dom"
 
 import { Search, LayoutList, Heart } from "lucide-react";

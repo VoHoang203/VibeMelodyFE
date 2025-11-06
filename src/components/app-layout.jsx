@@ -1,33 +1,26 @@
 import { useState } from "react";
-import {
-  Link,
-  NavLink,
-  useLocation,
-  useNavigate,
-  useParams,
-} from "react-router-dom";
+import { useLocation, Outlet } from "react-router-dom";
 import { LeftSidebar } from "./left-sidebar";
 import { RightSidebar } from "./right-sidebar";
 import { MusicPlayer } from "./music-player-bar";
 import { Header } from "./header";
 import { Button } from "./ui/button";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useUserStore } from "../store/useUserStore";
 
-export function AppLayout({ children }) {
+export function AppLayout() {
   const { pathname } = useLocation();
   const isChat = pathname === "/chat";
   const [showRightSidebar, setShowRightSidebar] = useState(true);
-
+  const user = useUserStore((s) => s.user);
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-black text-white">
       <Header />
 
       <div className="flex flex-1 overflow-hidden">
-        {/* Left Sidebar */}
-        <LeftSidebar />
+        {user && <LeftSidebar />}
 
-        {/* Main Content */}
-        <main className="flex-1 overflow-y-auto pb-24 relative">
+        <main className="flex-1 overflow-y-auto pb-24 relative  ">
           {!isChat && (
             <Button
               size="icon"
@@ -42,14 +35,13 @@ export function AppLayout({ children }) {
               )}
             </Button>
           )}
-          {children}
+          <Outlet />
         </main>
 
-        {!isChat && showRightSidebar && <RightSidebar />}
+        {!isChat && showRightSidebar && user && <RightSidebar />}
       </div>
 
-      {/* Music Player - fixed at bottom */}
-      <MusicPlayer />
+      {user && <MusicPlayer />}
     </div>
   );
 }
