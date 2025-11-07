@@ -96,7 +96,7 @@ export function WaveformPlayer({ track, markers = [] }) {
             >
               <Avatar className="h-8 w-8 border-2 border-[#1a1a1a] ring-1 ring-black/30">
                 <img
-                  src={m.avatarUrl || "/placeholder.svg?height=32&width=32"}
+                  src={m.imageUrl || "/placeholder.svg?height=32&width=32"}
                   alt={m.username || "Commenter"}
                 />
               </Avatar>

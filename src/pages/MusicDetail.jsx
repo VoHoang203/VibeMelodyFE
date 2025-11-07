@@ -48,7 +48,7 @@ export default function MusicDetailPage() {
   const [song, setSong] = useState(null);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
-
+const user = useUserStore((s) => s.user);
   const setCurrentSong = usePlayerStore((s) => s.setCurrentSong);
 
   // lấy timestamp hiện tại từ player store khi gửi comment
@@ -192,7 +192,7 @@ export default function MusicDetailPage() {
             <div className="rounded-lg bg-card p-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <img src="/placeholder.svg?height=40&width=40" alt="User" />
+                  <img src={user.imageUrl || "/placeholder.svg?height=40&width=40"} alt="User" />
                 </Avatar>
                 <input
                   type="text"
