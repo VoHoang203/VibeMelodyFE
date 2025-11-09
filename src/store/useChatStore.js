@@ -22,7 +22,8 @@ export const useChatStore = create((set, get) => ({
   userActivities: new Map(),
   messages: [],
   selectedUser: null,
-
+  notifications: [],
+  unreadCount: 0,
   setSelectedUser: (user) => set({ selectedUser: user }),
 
   fetchUsers: async () => {
@@ -37,6 +38,18 @@ export const useChatStore = create((set, get) => ({
       });
     } finally {
       set({ isLoading: false });
+    }
+  },
+  fetchNotifications: async () => {
+    try {
+      const res = await api.get("/chat/allnoti");
+      set({
+        notifications: res.data,
+        unreadCount: res.data.filter((n) => !n.isRead).length || 0,
+      });
+      console.log(res.data);
+    } catch (err) {
+      console.error("❌ fetchNotifications error:", err);
     }
   },
 
@@ -72,15 +85,24 @@ export const useChatStore = create((set, get) => ({
     });
 
     socket.on("receive_message", (message) => {
-      set((state) => ({
-        messages: [...state.messages, message],
-      }));
+      set((state) => {
+        const mid = message._id || message.id;
+        // nếu đã có message này rồi thì bỏ qua
+        if (state.messages.some((m) => (m._id || m.id) === mid)) {
+          return state;
+        }
+        return { messages: [...state.messages, message] };
+      });
     });
 
     socket.on("message_sent", (message) => {
-      set((state) => ({
-        messages: [...state.messages, message],
-      }));
+      set((state) => {
+        const mid = message._id || message.id;
+        if (state.messages.some((m) => (m._id || m.id) === mid)) {
+          return state;
+        }
+        return { messages: [...state.messages, message] };
+      });
     });
 
     socket.on("activity_updated", ({ userId, activity }) => {
@@ -90,7 +112,13 @@ export const useChatStore = create((set, get) => ({
         return { userActivities: newMap };
       });
     });
-
+    socket.on("notification:new", (data) => {
+      console.log("🔔 New notification:", data);
+      set((state) => ({
+        notifications: [data, ...state.notifications],
+        unreadCount: state.unreadCount + 1,
+      }));
+    });
     set({ isConnected: true });
     console.log("🟢 Socket connected for user:", userId);
   },

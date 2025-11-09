@@ -11,9 +11,9 @@ export const useUserStore = create((set, get) => ({
 
   setUser: (userData) => {
     localStorage.setItem("user", JSON.stringify(userData));
-    set({ 
+    set({
       user: userData,
-      isArtist: !!(userData && userData.isArtist === true)
+      isArtist: !!(userData && userData.isArtist === true),
     });
   },
 
@@ -36,9 +36,9 @@ export const useUserStore = create((set, get) => ({
         localStorage.removeItem("user");
         return set({ user: null, isArtist: false });
       }
-      set({ 
+      set({
         user: parsed,
-        isArtist: !!(parsed && parsed.isArtist === true)
+        isArtist: !!(parsed && parsed.isArtist === true),
       });
     } catch {
       localStorage.removeItem("user");
@@ -46,24 +46,42 @@ export const useUserStore = create((set, get) => ({
     }
   },
 
-  signup: async ({ name, email, password, confirmPassword }) => {
+  signup: async ({ name, email, password }) => {
     set({ loading: true });
-    if (password !== confirmPassword) {
+    console.log({ name, email, password })
+    if (!name || !email || !password) {
       set({ loading: false });
-      return toast.error("Passwords do not match");
+      throw Error("Please fill in all fields");
     }
 
     try {
-      const res = await api.post("/auth/signup", { name, email, password });
-      console.log(res);
-      if (!res.data || !res.data.user) {
-        throw new Error("Invalid login response");
+      // BE yêu cầu fullName
+      const res = await api.post("/auth/signup", {
+        fullName: name,
+        email:email,
+        password:password,
+      });
+
+      const { user, accessToken } = res.data || {};
+
+      if (!user) {
+        set({ loading: false });
+        throw Error("Please fill in all fields");
       }
-      get().setUser(res.data.user);
+
+      // nếu bạn có dùng token cho các request sau
+      if (accessToken) {
+        api.defaults.headers.common.Authorization = `Bearer ${accessToken}`;
+      }
+
       set({ loading: false });
+      toast.success("Account created!");
     } catch (error) {
+      console.error("Signup error:", error);
       set({ loading: false });
-      toast.error(error.response?.data?.message || "An error occurred");
+      toast.error(
+        error?.response?.data?.message || "An error occurred during signup"
+      );
     }
   },
 
@@ -77,11 +95,10 @@ export const useUserStore = create((set, get) => ({
         throw new Error("Invalid login response");
       }
       get().setUser(res.data.user);
-      get().setToken(res.data.token);
-
-      set({ 
+      get().setToken(res.data.accessToken);
+      set({
         loading: false,
-        isArtist: !!(res.data.user && res.data.user.isArtist === true)
+        isArtist: !!(res.data.user && res.data.user.isArtist === true),
       });
     } catch (error) {
       set({ loading: false });

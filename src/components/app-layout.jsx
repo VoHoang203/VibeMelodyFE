@@ -7,12 +7,14 @@ import { Header } from "./header";
 import { Button } from "./ui/button";
 import { PanelRightClose, PanelRightOpen } from "lucide-react";
 import { useUserStore } from "../store/useUserStore";
+import { usePlayerStore } from "../store/usePlayerStore";
 
 export function AppLayout() {
   const { pathname } = useLocation();
   const isChat = pathname === "/chat";
   const [showRightSidebar, setShowRightSidebar] = useState(true);
   const user = useUserStore((s) => s.user);
+  const {currentSong} = usePlayerStore()
   return (
     <div className="flex flex-col h-screen overflow-hidden bg-black text-white">
       <Header />
@@ -41,7 +43,7 @@ export function AppLayout() {
         {!isChat && showRightSidebar && user && <RightSidebar />}
       </div>
 
-      {user && <MusicPlayer />}
+      {user && currentSong && <MusicPlayer />}
     </div>
   );
 }

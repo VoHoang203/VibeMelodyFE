@@ -39,7 +39,8 @@ export default function MusicDetailPage() {
   const { id } = useParams();
   const [isLiked, setIsLiked] = useState(false);
   const [isReposted, setIsReposted] = useState(false);
-
+  const [likesCount, setLikesCount] = useState(0);
+  const [liking, setLiking] = useState(false);
   // input field
   const [commentInput, setCommentInput] = useState("");
 
@@ -48,8 +49,11 @@ export default function MusicDetailPage() {
   const [song, setSong] = useState(null);
   const [comments, setComments] = useState([]);
   const [loadingComments, setLoadingComments] = useState(false);
-const user = useUserStore((s) => s.user);
+  const user = useUserStore((s) => s.user);
   const setCurrentSong = usePlayerStore((s) => s.setCurrentSong);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followLoading, setFollowLoading] = useState(false);
 
   // lấy timestamp hiện tại từ player store khi gửi comment
   const getCurrentTime = () =>
@@ -78,6 +82,49 @@ const user = useUserStore((s) => s.user);
       mounted = false;
     };
   }, [id]);
+useEffect(() => {
+    if (!id || !user) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get(`/songs/${id}/like-status`);
+        if (cancelled) return;
+        setIsLiked(!!data.liked);
+        setLikesCount(
+          typeof data.likesCount === "number" ? data.likesCount : 0
+        );
+      } catch (err) {
+        // nếu 401 thì coi như chưa like
+        console.error("Failed to load like status:", err);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, user]);
+  const artistId = artist?._id;
+  useEffect(() => {
+    if (!artistId || !user) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await api.get(`/artists/${artistId}/follow-status`);
+        if (cancelled) return;
+        setIsFollowing(!!data.following);
+        setFollowersCount(
+          typeof data.followersCount === "number" ? data.followersCount : 0
+        );
+      } catch (err) {
+        console.error("Failed to load follow status:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [artistId, user]);
   const markers = useMemo(() => {
     const dur = Number(song?.duration) || 0;
     return normalizeMarkers(comments, dur);
@@ -93,7 +140,7 @@ const user = useUserStore((s) => s.user);
     audioUrl: song.audioUrl,
     duration: song.duration,
   };
-
+  
   async function submitComment() {
     const content = commentInput.trim();
     if (!content || !userId) return;
@@ -109,6 +156,107 @@ const user = useUserStore((s) => s.user);
       setComments((prev) => [created, ...prev]);
     } catch (e) {
       console.error("Failed to post comment:", e);
+    }
+  }
+  async function toggleFollow() {
+    if (!user || !artistId) {
+      console.log("Need login to follow");
+      return;
+    }
+    if (followLoading) return;
+
+    setFollowLoading(true);
+    const prevFollowing = isFollowing;
+    const prevCount = followersCount;
+
+    if (!prevFollowing) {
+      // optimistic
+      setIsFollowing(true);
+      setFollowersCount((c) => c + 1);
+      try {
+        const { data } = await api.post(`/artists/${artistId}/follow`);
+        setIsFollowing(!!data.following);
+        setFollowersCount(
+          typeof data.followersCount === "number"
+            ? data.followersCount
+            : prevCount + 1
+        );
+      } catch (err) {
+        console.error("Follow failed:", err);
+        setIsFollowing(prevFollowing);
+        setFollowersCount(prevCount);
+      } finally {
+        setFollowLoading(false);
+      }
+    } else {
+      // unfollow
+      setIsFollowing(false);
+      setFollowersCount((c) => Math.max(0, c - 1));
+      try {
+        const { data } = await api.delete(`/artists/${artistId}/follow`);
+        setIsFollowing(!!data.following);
+        setFollowersCount(
+          typeof data.followersCount === "number"
+            ? data.followersCount
+            : prevCount - 1
+        );
+      } catch (err) {
+        console.error("Unfollow failed:", err);
+        setIsFollowing(prevFollowing);
+        setFollowersCount(prevCount);
+      } finally {
+        setFollowLoading(false);
+      }
+    }
+  }
+  // NEW: toggle like/unlike gọi API
+  async function toggleLike() {
+    if (!user) {
+      // Có thể mở modal login hoặc toast ở đây
+      console.log("Need login to like");
+      return;
+    }
+    if (liking || !song?._id) return;
+
+    setLiking(true);
+    const prevLiked = isLiked;
+    const prevCount = likesCount;
+
+    // optimistic update
+    if (!prevLiked) {
+      setIsLiked(true);
+      setLikesCount((c) => c + 1);
+      try {
+        const { data } = await api.post(`/songs/${song._id}/like`);
+        setIsLiked(!!data.liked);
+        setLikesCount(
+          typeof data.likesCount === "number" ? data.likesCount : prevCount + 1
+        );
+      } catch (err) {
+        console.error("Like failed:", err);
+        // revert
+        setIsLiked(prevLiked);
+        setLikesCount(prevCount);
+      } finally {
+        setLiking(false);
+      }
+    } else {
+      setIsLiked(false);
+      setLikesCount((c) => Math.max(0, c - 1));
+      try {
+        const { data } = await api.delete(`/songs/${song._id}/like`);
+        setIsLiked(!!data.liked);
+        setLikesCount(
+          typeof data.likesCount === "number" ? data.likesCount : prevCount - 1
+        );
+      } catch (err) {
+        console.error("Unlike failed:", err);
+        // revert
+        setIsLiked(prevLiked);
+        setLikesCount(prevCount);
+      } finally {
+        setLiking(false);
+      }
     }
   }
 
@@ -131,7 +279,9 @@ const user = useUserStore((s) => s.user);
 
                 <div className="flex-1">
                   <h1 className="mb-1 text-2xl font-bold">{song.title}</h1>
-                  <p className="text-muted-foreground">{song.artist}</p>
+                  <p className="text-muted-foreground">
+                    {song.artist.fullName}
+                  </p>
                 </div>
               </div>
 
@@ -142,10 +292,11 @@ const user = useUserStore((s) => s.user);
                   <Button
                     size="icon"
                     variant="ghost"
+                    disabled={liking}
                     className={`rounded-md ${
                       isLiked ? "text-primary" : "text-muted-foreground"
                     } hover:text-primary`}
-                    onClick={() => setIsLiked((v) => !v)}
+                    onClick={toggleLike}
                   >
                     <Heart
                       className={`h-5 w-5 ${isLiked ? "fill-current" : ""}`}
@@ -192,7 +343,10 @@ const user = useUserStore((s) => s.user);
             <div className="rounded-lg bg-card p-4">
               <div className="flex items-center gap-3">
                 <Avatar className="h-10 w-10">
-                  <img src={user.imageUrl || "/placeholder.svg?height=40&width=40"} alt="User" />
+                  <img
+                    src={user?.imageUrl || "/placeholder.svg?height=40&width=40"}
+                    alt="User"
+                  />
                 </Avatar>
                 <input
                   type="text"
@@ -233,13 +387,13 @@ const user = useUserStore((s) => s.user);
               <div className="flex flex-col items-center space-y-4 text-center">
                 <Avatar className="h-24 w-24">
                   <img
-                    src={song.artistAvatar || "/placeholder.svg"}
-                    alt={song.artist}
+                    src={artist.imageUrl || "/placeholder.svg"}
+                    alt={artist.fullName}
                   />
                 </Avatar>
 
                 <div>
-                  <h3 className="text-lg font-bold">{song.artist}</h3>
+                  <h3 className="text-lg font-bold">{artist.fullName}</h3>
                   <div className="mt-2 flex items-center justify-center gap-4 text-sm text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <svg
@@ -249,13 +403,18 @@ const user = useUserStore((s) => s.user);
                       >
                         <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
                       </svg>
-                      {song.followers}
+                      {followersCount}
                     </span>
                   </div>
                 </div>
 
-                <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                  Follow
+                <Button
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                  variant={isFollowing ? "outline" : "default"}
+                  disabled={followLoading}
+                  onClick={toggleFollow}
+                >
+                  {isFollowing ? "Following" : "Follow"}
                 </Button>
               </div>
             </div>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Search as SearchIcon, Play } from "lucide-react";
+import { Search as SearchIcon, Play, BadgeCheck } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "../lib/api";
@@ -16,6 +16,7 @@ export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [songs, setSongs] = useState([]);
   const [albums, setAlbums] = useState([]);
+  const [artists, setArtists] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // debounce 350ms
@@ -27,26 +28,33 @@ export default function SearchPage() {
     };
   }, []);
 
-  // fetch songs + albums
+  // fetch songs + albums + artists
   useEffect(() => {
     setLoading(true);
     debouncedQ(searchQuery, async (q) => {
       try {
-        // GET /songs?q=
-        const [sRes, aRes] = await Promise.all([
+        const [sRes, aRes, artRes] = await Promise.all([
           api.get("/allsongs", { params: { q: q || "" } }),
           api.get("/allalbums", { params: { q: q || "" } }),
+          api.get("/artists/search", { params: { q: q || "" } }),
         ]);
 
-        const sList = Array.isArray(sRes.data) ? sRes.data : (sRes.data.items || []);
-        const aList = Array.isArray(aRes.data) ? aRes.data : (aRes.data.items || []);
+        const sList = Array.isArray(sRes.data)
+          ? sRes.data
+          : sRes.data.items || [];
+        const aList = Array.isArray(aRes.data)
+          ? aRes.data
+          : aRes.data.items || [];
+        const artList = Array.isArray(artRes.data)
+          ? artRes.data
+          : artRes.data.items || [];
 
         setSongs(
           sList.map((s) => ({
             id: s._id,
             name: s.title,
-            artist: s.artist,
-            album: s.albumTitle || "", // nếu BE chưa có thì để rỗng
+            artist: s.artistName || s.artist,
+            album: s.albumTitle || "",
             duration: fmtDur(s.duration || s.durationSec || 0),
             image: s.imageUrl,
           }))
@@ -56,9 +64,20 @@ export default function SearchPage() {
           aList.map((a) => ({
             id: a._id,
             name: a.title,
-            artist: a.artist,
-            tracks: Array.isArray(a.songs) ? a.songs.length : (a.tracks || 0),
+            artist: a.artistName,
+            tracks: Array.isArray(a.songs) ? a.songs.length : a.tracks || 0,
             image: a.imageUrl,
+          }))
+        );
+
+        setArtists(
+          artList.map((u) => ({
+            id: u._id,
+            name: u.name,
+            username: u.username,
+            followers: u.followersCount || 0,
+            avatar: u.avatar,
+            isVerified: u.isVerified,
           }))
         );
       } catch (e) {
@@ -99,8 +118,15 @@ export default function SearchPage() {
           >
             Album
           </TabsTrigger>
+          <TabsTrigger
+            value="artists"
+            className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent bg-transparent text-gray-400 data-[state=active]:text-white px-6 py-3"
+          >
+            Nghệ sĩ
+          </TabsTrigger>
         </TabsList>
 
+        {/* SONGS */}
         <TabsContent value="songs" className="mt-0">
           {loading && songs.length === 0 ? (
             <p className="text-sm text-gray-400">Đang tải…</p>
@@ -125,11 +151,17 @@ export default function SearchPage() {
                     </button>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-white truncate">{song.name}</p>
-                    <p className="text-sm text-gray-400 truncate">{song.artist}</p>
+                    <p className="font-medium text-white truncate">
+                      {song.name}
+                    </p>
+                    <p className="text-sm text-gray-400 truncate">
+                      {song.artist}
+                    </p>
                   </div>
                   {song.album && (
-                    <p className="text-sm text-gray-400 hidden md:block">{song.album}</p>
+                    <p className="text-sm text-gray-400 hidden md:block">
+                      {song.album}
+                    </p>
                   )}
                   <p className="text-sm text-gray-400">{song.duration}</p>
                 </Link>
@@ -138,6 +170,7 @@ export default function SearchPage() {
           )}
         </TabsContent>
 
+        {/* ALBUMS */}
         <TabsContent value="albums" className="mt-0">
           {loading && albums.length === 0 ? (
             <p className="text-sm text-gray-400">Đang tải…</p>
@@ -164,8 +197,54 @@ export default function SearchPage() {
                   <h3 className="font-semibold text-white mb-1 truncate">
                     {album.name}
                   </h3>
-                  <p className="text-sm text-gray-400 truncate">{album.artist}</p>
-                  <p className="text-xs text-gray-500 mt-1">{album.tracks} bài hát</p>
+                  <p className="text-sm text-gray-400 truncate">
+                    {album.artist}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {album.tracks} bài hát
+                  </p>
+                </Link>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* ARTISTS */}
+        <TabsContent value="artists" className="mt-0">
+          {loading && artists.length === 0 ? (
+            <p className="text-sm text-gray-400">Đang tải…</p>
+          ) : artists.length === 0 ? (
+            <p className="text-sm text-gray-400">Không có nghệ sĩ phù hợp</p>
+          ) : (
+            <div className="space-y-2">
+              {artists.map((artist) => (
+                <Link
+                  key={artist.id}
+                  to={`/artist/${artist.id}`}
+                  className="flex items-center gap-4 p-3 rounded-lg hover:bg-white/5 transition group"
+                >
+                  <img
+                    src={artist.avatar || "/placeholder.svg"}
+                    alt={artist.name}
+                    className="w-12 h-12 rounded-full object-cover"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-white truncate">
+                        {artist.name}
+                      </p>
+                      {artist.isVerified && (
+                        <BadgeCheck className="h-4 w-4 text-primary fill-primary shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-400 truncate">
+                      Nghệ sĩ •{" "}
+                      {artist.followers?.toLocaleString
+                        ? artist.followers.toLocaleString()
+                        : artist.followers}{" "}
+                      người theo dõi
+                    </p>
+                  </div>
                 </Link>
               ))}
             </div>

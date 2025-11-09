@@ -160,5 +160,14 @@ export const usePlayerStore = create(
         }
       }
     },
+    resetPlayer: () =>
+      set({
+        currentSong: null,
+        isPlaying: false,
+        queue: [],
+        currentIndex: -1,
+        currentTime: 0,
+        duration: 0,
+      }),
   }))
 );

@@ -30,7 +30,7 @@ export default function SocketProvider({ children }) {
     initedForUserRef.current = userId;
     initSocket(userId);
     fetchUsers();
-
+    useChatStore.getState().fetchNotifications();
     // cleanup khi đổi userId hoặc unmount
     return () => {
       disconnectSocket();

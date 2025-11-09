@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Music, Check } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../lib/api";
+import { toast } from "react-hot-toast";
 
 const packages = [
   {
@@ -9,7 +11,12 @@ const packages = [
     name: "1 Month",
     duration: 1,
     price: 60000,
-    features: ["Upload unlimited songs", "Create albums", "Analytics dashboard", "Artist verification badge"],
+    features: [
+      "Upload unlimited songs",
+      "Create albums",
+      "Analytics dashboard",
+      "Artist verification badge",
+    ],
   },
   {
     id: 2,
@@ -48,12 +55,59 @@ const packages = [
 export default function RegisterArtistPage() {
   const navigate = useNavigate();
   const [selectedPackage, setSelectedPackage] = useState(2);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const pkg = packages.find((p) => p.id === selectedPackage);
-    console.log("Artist registration submitted:", pkg);
-    navigate("/profile2");
+    if (!pkg) return;
+
+    try {
+      setLoading(true);
+      const orderCode = Date.now(); 
+
+      const baseUrl = window.location.origin;
+      const cancelUrl = `${baseUrl}/payment-failed?orderCode=${orderCode}`;
+      const returnUrl = `${baseUrl}/payment-success?orderCode=${orderCode}`;
+
+      // description tối đa 25 ký tự
+      const descRaw = `Artist ${pkg.duration}m`;
+      const description = descRaw.slice(0, 25);
+
+      const { data } = await api.post("/payos/create-payment", {
+        orderCode,
+        amount: pkg.price,
+        description,
+        cancelUrl,
+        returnUrl,
+      });
+
+      console.log("create-payment response:", data);
+
+      const checkoutUrl =
+        data.checkoutUrl ||
+        data?.data?.checkoutUrl ||
+        data?.shortLink ||
+        data?.paymentLink ||
+        "";
+
+      if (!checkoutUrl) {
+        toast.error("Không lấy được link thanh toán");
+        setLoading(false);
+        return;
+      }
+
+      // Redirect sang PayOS
+      window.location.href = checkoutUrl;
+    } catch (err) {
+      console.error("create-payment error:", err?.response?.data || err);
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.desc ||
+        "Thanh toán thất bại, vui lòng thử lại";
+      toast.error(msg);
+      setLoading(false);
+    }
   };
 
   return (
@@ -76,7 +130,7 @@ export default function RegisterArtistPage() {
             {packages.map((pkg) => (
               <div
                 key={pkg.id}
-                onClick={() => setSelectedPackage(pkg.id)}
+                onClick={() => !loading && setSelectedPackage(pkg.id)}
                 className={`relative bg-white/5 rounded-lg p-6 cursor-pointer transition border-2 ${
                   selectedPackage === pkg.id
                     ? "border-primary bg-primary/5"
@@ -92,13 +146,17 @@ export default function RegisterArtistPage() {
                 <div className="text-center mb-6">
                   <h3 className="text-2xl font-bold mb-2">{pkg.name}</h3>
                   <div className="mb-4">
-                    <span className="text-4xl font-bold">{pkg.price.toLocaleString()}đ</span>
+                    <span className="text-4xl font-bold">
+                      {pkg.price.toLocaleString()}đ
+                    </span>
                     <span className="text-gray-400 text-sm ml-2">
                       / {pkg.duration} month{pkg.duration > 1 ? "s" : ""}
                     </span>
                   </div>
                   {pkg.discount && (
-                    <p className="text-primary text-sm font-semibold">{pkg.discount}</p>
+                    <p className="text-primary text-sm font-semibold">
+                      {pkg.discount}
+                    </p>
                   )}
                 </div>
 
@@ -106,7 +164,9 @@ export default function RegisterArtistPage() {
                   {pkg.features.map((feature, index) => (
                     <li key={index} className="flex items-start gap-2">
                       <Check className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm text-gray-300">{feature}</span>
+                      <span className="text-sm text-gray-300">
+                        {feature}
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -140,13 +200,15 @@ export default function RegisterArtistPage() {
 
           <Button
             type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-black text-lg py-6"
+            disabled={loading}
+            className="w-full bg-primary hover:bg-primary/90 text-black text-lg py-6 disabled:opacity-60"
           >
-            Subscribe & Become an Artist
+            {loading ? "Redirecting to PayOS..." : "Subscribe & Become an Artist"}
           </Button>
 
           <p className="text-center text-sm text-gray-400 mt-4">
-            By subscribing, you agree to our Terms of Service and Artist Agreement
+            By subscribing, you agree to our Terms of Service and Artist
+            Agreement
           </p>
         </form>
       </div>

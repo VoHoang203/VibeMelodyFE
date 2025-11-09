@@ -22,6 +22,10 @@ import Upload from "./pages/Upload";
 import ManageMusicPage from "./pages/ManageMusic";
 import ManageAlbumsPage from "./pages/ManageAlbum";
 import RegisterArtistPage from "./pages/RegisterArtistPage";
+import ArtistProfilePage from "./pages/Profile2";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
+import PaymentFailedPage from "./pages/PaymentFailedPage";
+import LikedSongsPage from "./pages/LikedSongsPage";
 
 export default function App() {
   const { user, initializeUser } = useUserStore();
@@ -69,6 +73,13 @@ export default function App() {
               user ? <RegisterArtistPage /> : <Navigate to="/login" replace />
             }
           />
+          <Route path="/artist/:id" element={<ArtistProfilePage />} />
+          <Route
+            path="/liked-songs"
+            element={
+              user ? <LikedSongsPage /> : <Navigate to="/login" replace />
+            }
+          />
 
           {/* Artist-only */}
           {isArtist && (
@@ -76,11 +87,11 @@ export default function App() {
               <Route path="/upload" element={<Upload />} />
               <Route path="/manage-music" element={<ManageMusicPage />} />
               <Route path="/manage-albums" element={<ManageAlbumsPage />} />
-              <Route path="/profile2" element={<Profile2 />} />
             </>
           )}
         </Route>
-
+        <Route path="/payment-success" element={<PaymentSuccessPage />} />
+        <Route path="/payment-failed" element={<PaymentFailedPage />} />
         {/* fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
