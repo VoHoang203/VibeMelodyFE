@@ -6,11 +6,11 @@ export function WaveformPlayer({ track, markers = [] }) {
   const waveformRef = useRef(null);
 
   // state từ player store
-  const currentSong   = usePlayerStore((s) => s.currentSong);
-  const currentTime   = usePlayerStore((s) => s.currentTime);
+  const currentSong = usePlayerStore((s) => s.currentSong);
+  const currentTime = usePlayerStore((s) => s.currentTime);
   const durationStore = usePlayerStore((s) => s.duration);
-  const setProgress   = usePlayerStore((s) => s.setProgress);
-
+  const setProgress = usePlayerStore((s) => s.setProgress);
+  console.log(markers);
   // waveform này có phải bài đang phát?
   const isActive =
     currentSong &&
@@ -72,7 +72,9 @@ export function WaveformPlayer({ track, markers = [] }) {
               <div
                 key={i}
                 className={`flex-1 rounded-sm transition-colors ${
-                  isPlayed ? "bg-primary" : "bg-gray-600 group-hover:bg-gray-500"
+                  isPlayed
+                    ? "bg-primary"
+                    : "bg-gray-600 group-hover:bg-gray-500"
                 }`}
                 style={{ height: `${height}%` }}
               />
@@ -92,11 +94,13 @@ export function WaveformPlayer({ track, markers = [] }) {
               }}
               className="absolute bottom-0 -translate-x-1/2 transform focus:outline-none"
               style={{ left: `${(m.left ?? 0) * 100}%` }}
-              title={`@${m.username || "user"} · ${formatTime(m.timestamp || 0)}`}
+              title={`@${m.username || "user"} · ${formatTime(
+                m.timestamp || 0
+              )}`}
             >
               <Avatar className="h-8 w-8 border-2 border-[#1a1a1a] ring-1 ring-black/30">
                 <img
-                  src={m.imageUrl || "/placeholder.svg?height=32&width=32"}
+                  src={m.avatarUrl || "/placeholder.svg?height=32&width=32"}
                   alt={m.username || "Commenter"}
                 />
               </Avatar>

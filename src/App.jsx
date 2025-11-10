@@ -16,7 +16,6 @@ import Chat from "./pages/Chat";
 import CreateAlbum from "./pages/CreateAlbum";
 import MusicDetail from "./pages/MusicDetail";
 import Profile from "./pages/Profile";
-import Profile2 from "./pages/Profile2";
 import Search from "./pages/Search";
 import Upload from "./pages/Upload";
 import ManageMusicPage from "./pages/ManageMusic";

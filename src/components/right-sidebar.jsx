@@ -61,7 +61,7 @@ export function RightSidebar({ currentUserId }) {
             const isOnline = onlineUsers.has(u._id);
             const activity = userActivities.get(u._id) || "Idle";
             const { title, artist, isPlaying } = parseActivity(activity);
-            console.log(userActivities);
+            console.log(onlineUsers);
             return (
               <div key={u._id || u.id} className="flex items-center gap-3">
                 {/* Avatar + status */}
